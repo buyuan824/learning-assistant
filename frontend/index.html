@@ -1,0 +1,1600 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AI PM 学习助手</title>
+    <script src="https://cdn.jsdelivr.net/npm/echarts@5.4.3/dist/echarts.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+    <style>
+        /* ========== CSS 变量 ========== */
+        :root {
+            --bg-primary: #0a0a0f;
+            --bg-secondary: #12121a;
+            --bg-tertiary: #1a1a26;
+            --bg-hover: #22222e;
+            --accent: #d4a574;
+            --accent-hover: #e0b88a;
+            --accent-dim: rgba(212, 165, 116, 0.15);
+            --text-primary: #e8e8e8;
+            --text-secondary: #888888;
+            --text-dim: #555555;
+            --border: #2a2a36;
+            --success: #4ade80;
+            --error: #f87171;
+            --warning: #fbbf24;
+            --info: #60a5fa;
+            --radius: 12px;
+            --radius-sm: 8px;
+            --shadow: 0 4px 24px rgba(0,0,0,0.4);
+            --transition: all 0.2s ease;
+        }
+
+        /* ========== 基础样式 ========== */
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'PingFang SC', 'Microsoft YaHei', sans-serif;
+            background: var(--bg-primary);
+            color: var(--text-primary);
+            min-height: 100vh;
+            display: flex;
+        }
+
+        /* ========== 侧边栏 ========== */
+        .sidebar {
+            width: 240px;
+            min-height: 100vh;
+            background: var(--bg-secondary);
+            border-right: 1px solid var(--border);
+            display: flex;
+            flex-direction: column;
+            position: fixed;
+            left: 0;
+            top: 0;
+            z-index: 100;
+        }
+
+        .sidebar-logo {
+            padding: 24px 20px;
+            border-bottom: 1px solid var(--border);
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+
+        .sidebar-logo .logo-icon {
+            width: 36px;
+            height: 36px;
+            background: linear-gradient(135deg, var(--accent), #b8860b);
+            border-radius: 10px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 18px;
+        }
+
+        .sidebar-logo .logo-text {
+            font-size: 16px;
+            font-weight: 700;
+            color: var(--accent);
+            letter-spacing: 0.5px;
+        }
+
+        .sidebar-nav {
+            padding: 16px 12px;
+            flex: 1;
+        }
+
+        .nav-item {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            padding: 12px 16px;
+            border-radius: var(--radius-sm);
+            cursor: pointer;
+            transition: var(--transition);
+            color: var(--text-secondary);
+            margin-bottom: 4px;
+            font-size: 14px;
+        }
+
+        .nav-item:hover { background: var(--bg-hover); color: var(--text-primary); }
+        .nav-item.active { background: var(--accent-dim); color: var(--accent); }
+        .nav-item .icon { font-size: 18px; width: 24px; text-align: center; }
+
+        .sidebar-footer {
+            padding: 16px 20px;
+            border-top: 1px solid var(--border);
+            font-size: 12px;
+            color: var(--text-dim);
+        }
+
+        /* ========== 主内容区 ========== */
+        .main-content {
+            margin-left: 240px;
+            flex: 1;
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .page-header {
+            padding: 24px 32px;
+            border-bottom: 1px solid var(--border);
+            background: var(--bg-secondary);
+        }
+
+        .page-header h1 {
+            font-size: 22px;
+            font-weight: 700;
+            color: var(--text-primary);
+        }
+
+        .page-header p {
+            font-size: 14px;
+            color: var(--text-secondary);
+            margin-top: 4px;
+        }
+
+        .page-body { padding: 24px 32px; flex: 1; }
+
+        /* ========== 页面容器 ========== */
+        .page { display: none; }
+        .page.active { display: block; }
+
+        /* ========== 卡片 ========== */
+        .card {
+            background: var(--bg-secondary);
+            border: 1px solid var(--border);
+            border-radius: var(--radius);
+            padding: 24px;
+            margin-bottom: 20px;
+        }
+
+        .card-title {
+            font-size: 16px;
+            font-weight: 600;
+            color: var(--text-primary);
+            margin-bottom: 16px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        /* ========== 拖拽上传区 ========== */
+        .upload-zone {
+            border: 2px dashed var(--border);
+            border-radius: var(--radius);
+            padding: 48px;
+            text-align: center;
+            cursor: pointer;
+            transition: var(--transition);
+            background: var(--bg-tertiary);
+        }
+
+        .upload-zone:hover, .upload-zone.drag-over {
+            border-color: var(--accent);
+            background: var(--accent-dim);
+        }
+
+        .upload-zone .icon { font-size: 48px; margin-bottom: 16px; }
+        .upload-zone h3 { font-size: 16px; color: var(--text-primary); margin-bottom: 8px; }
+        .upload-zone p { font-size: 13px; color: var(--text-secondary); }
+
+        /* ========== 文档列表 ========== */
+        .doc-list { display: flex; flex-direction: column; gap: 8px; }
+
+        .doc-item {
+            display: flex;
+            align-items: center;
+            padding: 14px 16px;
+            background: var(--bg-tertiary);
+            border-radius: var(--radius-sm);
+            transition: var(--transition);
+        }
+
+        .doc-item:hover { background: var(--bg-hover); }
+
+        .doc-icon {
+            width: 40px;
+            height: 40px;
+            border-radius: 8px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 18px;
+            margin-right: 14px;
+            flex-shrink: 0;
+        }
+
+        .doc-icon.pdf { background: rgba(239,68,68,0.15); color: #ef4444; }
+        .doc-icon.pptx { background: rgba(249,115,22,0.15); color: #f97316; }
+        .doc-icon.md { background: rgba(96,165,250,0.15); color: #60a5fa; }
+        .doc-icon.txt { background: rgba(74,222,128,0.15); color: #4ade80; }
+
+        .doc-info { flex: 1; min-width: 0; }
+        .doc-name { font-size: 14px; font-weight: 500; color: var(--text-primary); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+        .doc-meta { font-size: 12px; color: var(--text-secondary); margin-top: 2px; }
+
+        .doc-status {
+            padding: 4px 12px;
+            border-radius: 20px;
+            font-size: 12px;
+            font-weight: 500;
+            flex-shrink: 0;
+            margin-left: 12px;
+        }
+
+        .doc-status.ready { background: rgba(74,222,128,0.15); color: var(--success); }
+        .doc-status.processing { background: rgba(251,191,36,0.15); color: var(--warning); animation: pulse 1.5s infinite; }
+        .doc-status.error { background: rgba(248,113,113,0.15); color: var(--error); }
+
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.5; }
+        }
+
+        .doc-delete {
+            width: 32px;
+            height: 32px;
+            border-radius: 6px;
+            border: none;
+            background: transparent;
+            color: var(--text-dim);
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin-left: 8px;
+            transition: var(--transition);
+            font-size: 16px;
+        }
+
+        .doc-delete:hover { background: rgba(248,113,113,0.15); color: var(--error); }
+
+        /* ========== 问答界面 ========== */
+        .chat-container {
+            display: flex;
+            flex-direction: column;
+            height: calc(100vh - 140px);
+        }
+
+        .doc-selector {
+            display: flex;
+            gap: 8px;
+            margin-bottom: 16px;
+            flex-wrap: wrap;
+        }
+
+        .doc-chip {
+            padding: 6px 14px;
+            border-radius: 20px;
+            font-size: 13px;
+            border: 1px solid var(--border);
+            background: var(--bg-tertiary);
+            color: var(--text-secondary);
+            cursor: pointer;
+            transition: var(--transition);
+        }
+
+        .doc-chip:hover { border-color: var(--accent); color: var(--text-primary); }
+        .doc-chip.selected { background: var(--accent-dim); border-color: var(--accent); color: var(--accent); }
+
+        .chat-messages {
+            flex: 1;
+            overflow-y: auto;
+            padding: 16px 0;
+            display: flex;
+            flex-direction: column;
+            gap: 16px;
+        }
+
+        .message {
+            display: flex;
+            gap: 12px;
+            max-width: 85%;
+        }
+
+        .message.user { align-self: flex-end; flex-direction: row-reverse; }
+        .message.assistant { align-self: flex-start; }
+
+        .message-avatar {
+            width: 36px;
+            height: 36px;
+            border-radius: 10px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 16px;
+            flex-shrink: 0;
+        }
+
+        .message.user .message-avatar { background: var(--accent-dim); color: var(--accent); }
+        .message.assistant .message-avatar { background: rgba(96,165,250,0.15); color: #60a5fa; }
+
+        .message-content {
+            padding: 14px 18px;
+            border-radius: var(--radius);
+            font-size: 14px;
+            line-height: 1.7;
+        }
+
+        .message.user .message-content {
+            background: var(--accent-dim);
+            color: var(--text-primary);
+            border-bottom-right-radius: 4px;
+        }
+
+        .message.assistant .message-content {
+            background: var(--bg-tertiary);
+            color: var(--text-primary);
+            border-bottom-left-radius: 4px;
+        }
+
+        .message.assistant .message-content h2,
+        .message.assistant .message-content h3 {
+            color: var(--accent);
+            margin: 12px 0 8px;
+        }
+
+        .message.assistant .message-content ul, 
+        .message.assistant .message-content ol {
+            padding-left: 20px;
+            margin: 8px 0;
+        }
+
+        .message.assistant .message-content code {
+            background: rgba(212,165,116,0.1);
+            padding: 2px 6px;
+            border-radius: 4px;
+            font-size: 13px;
+        }
+
+        .message.assistant .message-content pre {
+            background: var(--bg-primary);
+            padding: 12px 16px;
+            border-radius: 8px;
+            overflow-x: auto;
+            margin: 8px 0;
+        }
+
+        .chat-input-area {
+            padding-top: 16px;
+            border-top: 1px solid var(--border);
+            display: flex;
+            gap: 12px;
+        }
+
+        .chat-input {
+            flex: 1;
+            padding: 14px 18px;
+            border-radius: var(--radius);
+            border: 1px solid var(--border);
+            background: var(--bg-tertiary);
+            color: var(--text-primary);
+            font-size: 14px;
+            resize: none;
+            outline: none;
+            font-family: inherit;
+            transition: var(--transition);
+        }
+
+        .chat-input:focus { border-color: var(--accent); }
+
+        .btn-send {
+            width: 48px;
+            height: 48px;
+            border-radius: var(--radius-sm);
+            border: none;
+            background: var(--accent);
+            color: var(--bg-primary);
+            cursor: pointer;
+            font-size: 18px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: var(--transition);
+            flex-shrink: 0;
+        }
+
+        .btn-send:hover { background: var(--accent-hover); }
+        .btn-send:disabled { opacity: 0.5; cursor: not-allowed; }
+
+        /* ========== 测评界面 ========== */
+        .quiz-setup {
+            display: flex;
+            gap: 20px;
+            align-items: flex-end;
+            margin-bottom: 24px;
+            flex-wrap: wrap;
+        }
+
+        .form-group { display: flex; flex-direction: column; gap: 6px; }
+        .form-group label { font-size: 13px; color: var(--text-secondary); font-weight: 500; }
+
+        .form-select, .form-input {
+            padding: 10px 14px;
+            border-radius: var(--radius-sm);
+            border: 1px solid var(--border);
+            background: var(--bg-tertiary);
+            color: var(--text-primary);
+            font-size: 14px;
+            outline: none;
+            transition: var(--transition);
+        }
+
+        .form-select:focus, .form-input:focus { border-color: var(--accent); }
+
+        .btn {
+            padding: 10px 24px;
+            border-radius: var(--radius-sm);
+            border: none;
+            cursor: pointer;
+            font-size: 14px;
+            font-weight: 500;
+            transition: var(--transition);
+        }
+
+        .btn-primary { background: var(--accent); color: var(--bg-primary); }
+        .btn-primary:hover { background: var(--accent-hover); }
+        .btn-secondary { background: var(--bg-tertiary); color: var(--text-primary); border: 1px solid var(--border); }
+        .btn-secondary:hover { border-color: var(--accent); }
+
+        .quiz-area { display: none; }
+        .quiz-area.active { display: block; }
+
+        .quiz-question {
+            background: var(--bg-tertiary);
+            border-radius: var(--radius);
+            padding: 20px;
+            margin-bottom: 16px;
+        }
+
+        .quiz-question .q-header {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            margin-bottom: 14px;
+        }
+
+        .quiz-question .q-number {
+            width: 28px;
+            height: 28px;
+            border-radius: 50%;
+            background: var(--accent-dim);
+            color: var(--accent);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 13px;
+            font-weight: 600;
+        }
+
+        .quiz-question .q-type {
+            padding: 2px 10px;
+            border-radius: 10px;
+            font-size: 11px;
+            font-weight: 500;
+        }
+
+        .q-type.choice { background: rgba(96,165,250,0.15); color: #60a5fa; }
+        .q-type.judge { background: rgba(74,222,128,0.15); color: #4ade80; }
+
+        .quiz-question .q-text { font-size: 15px; color: var(--text-primary); margin-bottom: 14px; line-height: 1.6; }
+
+        .quiz-options { display: flex; flex-direction: column; gap: 8px; }
+
+        .quiz-option {
+            padding: 12px 16px;
+            border-radius: var(--radius-sm);
+            border: 1px solid var(--border);
+            background: var(--bg-secondary);
+            cursor: pointer;
+            transition: var(--transition);
+            font-size: 14px;
+            color: var(--text-primary);
+        }
+
+        .quiz-option:hover { border-color: var(--accent); background: var(--accent-dim); }
+        .quiz-option.selected { border-color: var(--accent); background: var(--accent-dim); }
+        .quiz-option.correct { border-color: var(--success); background: rgba(74,222,128,0.1); }
+        .quiz-option.wrong { border-color: var(--error); background: rgba(248,113,113,0.1); }
+
+        .quiz-timer {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            font-size: 14px;
+            color: var(--text-secondary);
+            margin-bottom: 16px;
+        }
+
+        /* ========== 学习报告 ========== */
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 16px;
+            margin-bottom: 24px;
+        }
+
+        .stat-card {
+            background: var(--bg-secondary);
+            border: 1px solid var(--border);
+            border-radius: var(--radius);
+            padding: 20px;
+            text-align: center;
+        }
+
+        .stat-value {
+            font-size: 32px;
+            font-weight: 700;
+            color: var(--accent);
+            margin-bottom: 4px;
+        }
+
+        .stat-label { font-size: 13px; color: var(--text-secondary); }
+
+        .chart-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 20px;
+        }
+
+        .chart-container {
+            background: var(--bg-secondary);
+            border: 1px solid var(--border);
+            border-radius: var(--radius);
+            padding: 24px;
+        }
+
+        .chart-title {
+            font-size: 15px;
+            font-weight: 600;
+            color: var(--text-primary);
+            margin-bottom: 16px;
+        }
+
+        /* ========== Loading ========== */
+        .loading {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 24px;
+            color: var(--text-secondary);
+            gap: 8px;
+        }
+
+        .spinner {
+            width: 20px;
+            height: 20px;
+            border: 2px solid var(--border);
+            border-top-color: var(--accent);
+            border-radius: 50%;
+            animation: spin 0.8s linear infinite;
+        }
+
+        @keyframes spin { to { transform: rotate(360deg); } }
+
+        /* ========== 空状态 ========== */
+        .empty-state {
+            text-align: center;
+            padding: 48px;
+            color: var(--text-secondary);
+        }
+
+        .empty-state .icon { font-size: 48px; margin-bottom: 16px; opacity: 0.5; }
+        .empty-state h3 { font-size: 16px; color: var(--text-primary); margin-bottom: 8px; }
+        .empty-state p { font-size: 13px; }
+
+        /* ========== Toast ========== */
+        .toast-container {
+            position: fixed;
+            top: 24px;
+            right: 24px;
+            z-index: 9999;
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+        }
+
+        .toast {
+            padding: 12px 20px;
+            border-radius: var(--radius-sm);
+            font-size: 14px;
+            color: var(--text-primary);
+            box-shadow: var(--shadow);
+            animation: slideIn 0.3s ease;
+        }
+
+        .toast.success { background: rgba(74,222,128,0.2); border: 1px solid rgba(74,222,128,0.3); }
+        .toast.error { background: rgba(248,113,113,0.2); border: 1px solid rgba(248,113,113,0.3); }
+        .toast.info { background: rgba(96,165,250,0.2); border: 1px solid rgba(96,165,250,0.3); }
+
+        @keyframes slideIn {
+            from { transform: translateX(100px); opacity: 0; }
+            to { transform: translateX(0); opacity: 1; }
+        }
+
+        /* ========== 滚动条 ========== */
+        ::-webkit-scrollbar { width: 6px; }
+        ::-webkit-scrollbar-track { background: transparent; }
+        ::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
+        ::-webkit-scrollbar-thumb:hover { background: var(--text-dim); }
+
+        /* ========== 响应式 ========== */
+        @media (max-width: 768px) {
+            .sidebar { display: none; }
+            .main-content { margin-left: 0; }
+            .stats-grid { grid-template-columns: repeat(2, 1fr); }
+            .chart-grid { grid-template-columns: 1fr; }
+        }
+    </style>
+</head>
+<body>
+    
+    <!-- 登录覆盖层 -->
+    <div id="loginOverlay" style="display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(10,10,15,0.98); z-index:9999; display:flex; align-items:center; justify-content:center;">
+        <div style="background:var(--bg-secondary); border:1px solid var(--border); border-radius:var(--radius); padding:48px; width:420px; max-width:90vw;">
+            <div style="text-align:center; margin-bottom:32px;">
+                <div style="width:56px; height:56px; background:linear-gradient(135deg, var(--accent), #b8860b); border-radius:14px; display:inline-flex; align-items:center; justify-content:center; font-size:28px; margin-bottom:16px;">📚</div>
+                <h2 style="color:var(--accent); font-size:20px; font-weight:700; letter-spacing:0.5px;">AI PM 学习助手</h2>
+                <p style="color:var(--text-secondary); font-size:13px; margin-top:8px;">登录后开始学习</p>
+            </div>
+            
+            <!-- 登录表单 -->
+            <div id="loginForm">
+                <div style="margin-bottom:16px;">
+                    <label style="display:block; color:var(--text-secondary); font-size:13px; margin-bottom:6px;">用户名</label>
+                    <input type="text" id="loginUsername" style="width:100%; padding:10px 14px; background:var(--bg-tertiary); border:1px solid var(--border); border-radius:var(--radius-sm); color:var(--text-primary); font-size:14px; outline:none;" placeholder="请输入用户名">
+                </div>
+                <div style="margin-bottom:24px;">
+                    <label style="display:block; color:var(--text-secondary); font-size:13px; margin-bottom:6px;">密码</label>
+                    <input type="password" id="loginPassword" style="width:100%; padding:10px 14px; background:var(--bg-tertiary); border:1px solid var(--border); border-radius:var(--radius-sm); color:var(--text-primary); font-size:14px; outline:none;" placeholder="请输入密码" onkeydown="if(event.key==='Enter')doLogin()">
+                </div>
+                <button onclick="doLogin()" style="width:100%; padding:12px; background:linear-gradient(135deg, var(--accent), #b8860b); border:none; border-radius:var(--radius-sm); color:#000; font-size:14px; font-weight:600; cursor:pointer; margin-bottom:16px;">登录</button>
+                <div style="text-align:center; color:var(--text-secondary); font-size:13px;">
+                    没有账号？<a href="#" onclick="showRegister(); return false;" style="color:var(--accent);">立即注册</a>
+                </div>
+                <div id="loginError" style="color:var(--error); font-size:13px; margin-top:12px; text-align:center;"></div>
+            </div>
+            
+            <!-- 注册表单 -->
+            <div id="registerForm" style="display:none;">
+                <div style="margin-bottom:16px;">
+                    <label style="display:block; color:var(--text-secondary); font-size:13px; margin-bottom:6px;">用户名</label>
+                    <input type="text" id="regUsername" style="width:100%; padding:10px 14px; background:var(--bg-tertiary); border:1px solid var(--border); border-radius:var(--radius-sm); color:var(--text-primary); font-size:14px; outline:none;" placeholder="请输入用户名">
+                </div>
+                <div style="margin-bottom:16px;">
+                    <label style="display:block; color:var(--text-secondary); font-size:13px; margin-bottom:6px;">密码</label>
+                    <input type="password" id="regPassword" style="width:100%; padding:10px 14px; background:var(--bg-tertiary); border:1px solid var(--border); border-radius:var(--radius-sm); color:var(--text-primary); font-size:14px; outline:none;" placeholder="至少6位密码" onkeydown="if(event.key==='Enter')doRegister()">
+                </div>
+                <div style="margin-bottom:24px;">
+                    <label style="display:block; color:var(--text-secondary); font-size:13px; margin-bottom:6px;">确认密码</label>
+                    <input type="password" id="regPassword2" style="width:100%; padding:10px 14px; background:var(--bg-tertiary); border:1px solid var(--border); border-radius:var(--radius-sm); color:var(--text-primary); font-size:14px; outline:none;" placeholder="再次输入密码" onkeydown="if(event.key==='Enter')doRegister()">
+                </div>
+                <button onclick="doRegister()" style="width:100%; padding:12px; background:linear-gradient(135deg, var(--accent), #b8860b); border:none; border-radius:var(--radius-sm); color:#000; font-size:14px; font-weight:600; cursor:pointer; margin-bottom:16px;">注册</button>
+                <div style="text-align:center; color:var(--text-secondary); font-size:13px;">
+                    已有账号？<a href="#" onclick="showLogin(); return false;" style="color:var(--accent);">返回登录</a>
+                </div>
+                <div id="registerError" style="color:var(--error); font-size:13px; margin-top:12px; text-align:center;"></div>
+            </div>
+        </div>
+    </div>
+    
+<!-- 侧边栏 -->
+<div class="sidebar">
+    <div class="sidebar-logo">
+        <div class="logo-icon">📚</div>
+        <div class="logo-text">AI PM 学习助手</div>
+    </div>
+    <div class="sidebar-nav">
+        <div class="nav-item active" onclick="switchPage('documents')">
+            <span class="icon">📂</span> 文档管理
+        </div>
+        <div class="nav-item" onclick="switchPage('query')">
+            <span class="icon">💬</span> 智能问答
+        </div>
+        <div class="nav-item" onclick="switchPage('quiz')">
+            <span class="icon">📝</span> 测评中心
+        </div>
+        <div class="nav-item" onclick="switchPage('progress')">
+            <span class="icon">📊</span> 学习报告
+        </div>
+    </div>
+    <div class="sidebar-footer" style="padding:16px 20px; border-top:1px solid var(--border);">
+        <div style="display:flex; align-items:center; justify-content:space-between;">
+            <div>
+                <div id="userInfo" style="font-size:13px; color:var(--accent); font-weight:600;">未登录</div>
+                <div style="font-size:11px; color:var(--text-dim); margin-top:2px;">点击登出</div>
+            </div>
+            <button onclick="doLogout()" style="background:var(--bg-tertiary); border:1px solid var(--border); color:var(--text-secondary); padding:6px 12px; border-radius:var(--radius-sm); font-size:12px; cursor:pointer;">登出</button>
+        </div>
+        <div style="font-size:10px; color:var(--text-dim); margin-top:8px;">DeepSeek + ChromaDB<br>Powered by Flask</div>
+    </div>
+</div>
+
+<!-- 主内容 -->
+<div class="main-content">
+
+    <!-- 文档管理页 -->
+    <div id="page-documents" class="page active">
+        <div class="page-header">
+            <h1>📂 文档管理</h1>
+            <p>上传学习资料，自动解析并建立知识索引</p>
+        </div>
+        <div class="page-body">
+            <div class="upload-zone" id="uploadZone">
+                <div class="icon">⬆️</div>
+                <h3>拖拽文件到此处上传</h3>
+                <p>支持 PDF、Markdown、PPT 格式 · 最大 100MB · 自动解析建索引</p>
+                <input type="file" id="fileInput" multiple accept=".pdf,.md,.pptx,.txt" style="display:none">
+            </div>
+            <div class="card" style="margin-top: 24px;">
+                <div class="card-title">📄 已上传文档</div>
+                <div id="docList" class="doc-list">
+                    <div class="empty-state">
+                        <div class="icon">📭</div>
+                        <h3>还没有文档</h3>
+                        <p>上传你的第一份学习资料吧</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 智能问答页 -->
+    <div id="page-query" class="page">
+        <div class="page-header">
+            <h1>💬 智能问答</h1>
+            <p>基于文档内容的 RAG 智能问答</p>
+        </div>
+        <div class="page-body">
+            <div class="chat-container">
+                <div class="doc-selector" id="docSelector">
+                    <div class="doc-chip selected" data-doc-id="" onclick="toggleDocChip(this)">全部文档</div>
+                </div>
+                <div class="chat-messages" id="chatMessages">
+                    <div class="empty-state">
+                        <div class="icon">🤔</div>
+                        <h3>开始提问吧</h3>
+                        <p>选择文档范围，然后输入你的问题</p>
+                    </div>
+                </div>
+                <div class="chat-input-area">
+                    <textarea class="chat-input" id="chatInput" rows="2" placeholder="输入你的问题... (Enter发送，Shift+Enter换行)"></textarea>
+                    <button class="btn-send" id="btnSend" onclick="sendMessage()">➤</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 测评中心页 -->
+    <div id="page-quiz" class="page">
+        <div class="page-header">
+            <h1>📝 测评中心</h1>
+            <p>基于文档内容自动出题，检验学习效果</p>
+        </div>
+        <div class="page-body">
+            <div class="card">
+                <div class="card-title">⚙️ 测评设置</div>
+                <div class="quiz-setup">
+                    <div class="form-group">
+                        <label>选择文档</label>
+                        <select class="form-select" id="quizDocSelect">
+                            <option value="">-- 请先上传文档 --</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label>题目类型</label>
+                        <select class="form-select" id="quizTypeSelect">
+                            <option value="mixed">选择题+判断题</option>
+                            <option value="choice">仅选择题</option>
+                            <option value="judge">仅判断题</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label>题目数量</label>
+                        <input class="form-input" id="quizNumInput" type="number" value="10" min="5" max="30">
+                    </div>
+                    <button class="btn btn-primary" id="btnGenerateQuiz" onclick="generateQuiz()">生成测评</button>
+                </div>
+            </div>
+
+            <div class="quiz-area" id="quizArea">
+                <div class="quiz-timer" id="quizTimer">⏱️ 用时：<span id="timerDisplay">00:00</span></div>
+                <div id="quizQuestions"></div>
+                <div style="margin-top: 20px; display: flex; gap: 12px;">
+                    <button class="btn btn-primary" onclick="submitQuiz()">提交答案</button>
+                    <button class="btn btn-secondary" onclick="resetQuiz()">重新出题</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 学习报告页 -->
+    <div id="page-progress" class="page">
+        <div class="page-header">
+            <h1>📊 学习报告</h1>
+            <p>追踪学习进度，可视化知识掌握度</p>
+        </div>
+        <div class="page-body">
+            <div class="stats-grid" id="statsGrid">
+                <div class="stat-card">
+                    <div class="stat-value" id="statQueries">0</div>
+                    <div class="stat-label">提问次数</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-value" id="statQuizzes">0</div>
+                    <div class="stat-label">测评次数</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-value" id="statAccuracy">0%</div>
+                    <div class="stat-label">正确率</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-value" id="statDocs">0</div>
+                    <div class="stat-label">学习资料</div>
+                </div>
+            </div>
+            <div class="chart-grid">
+                <div class="chart-container">
+                    <div class="chart-title">🎯 知识点掌握度</div>
+                    <div id="radarChart" style="height: 360px;"></div>
+                </div>
+                <div class="chart-container">
+                    <div class="chart-title">📈 测评结果分布</div>
+                    <div id="donutChart" style="height: 360px;"></div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+</div>
+
+<!-- Toast容器 -->
+<div class="toast-container" id="toastContainer"></div>
+
+<script>
+// ========== 全局变量 ==========
+const API_BASE = '/api';
+let currentQuiz = null;
+let quizStartTime = null;
+let quizTimerInterval = null;
+let selectedDocIds = [];
+let currentQuestions = [];
+
+// ========== 页面切换 ==========
+function switchPage(page) {
+    document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+    document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
+    
+    document.getElementById(`page-${page}`).classList.add('active');
+    event.currentTarget.classList.add('active');
+    
+    if (page === 'query') loadDocSelector();
+    if (page === 'quiz') loadQuizDocSelect();
+    if (page === 'progress') loadProgress();
+}
+
+// ========== Toast通知 ==========
+function showToast(message, type = 'info') {
+    const container = document.getElementById('toastContainer');
+    const toast = document.createElement('div');
+    toast.className = `toast ${type}`;
+    toast.textContent = message;
+    container.appendChild(toast);
+    setTimeout(() => toast.remove(), 3000);
+}
+
+// ========== 文件上传 ==========
+let uploadZone, fileInput;
+
+document.addEventListener('DOMContentLoaded', () => {
+    checkAuth();
+});
+
+async function uploadFiles(files) {
+    for (const file of files) {
+        const formData = new FormData();
+        formData.append('file', file);
+        
+        try {
+            const response = await apiFetch(`${API_BASE}/documents/upload`, {
+                method: 'POST',
+                body: formData
+            });
+            const data = await response.json();
+            
+            if (response.ok) {
+                showToast(`${file.name} 上传成功，正在解析...`, 'success');
+            } else {
+                showToast(`${file.name} 上传失败: ${data.error}`, 'error');
+            }
+        } catch (error) {
+            showToast(`${file.name} 上传出错: ${error.message}`, 'error');
+        }
+    }
+    
+    // 刷新文档列表
+    setTimeout(loadDocuments, 2000);
+    // 持续检查解析状态
+    checkProcessingStatus();
+}
+
+// ========== 文档列表 ==========
+async function loadDocuments() {
+    try {
+        const response = await apiFetch(`${API_BASE}/documents/`);
+        const data = await response.json();
+        
+        const docList = document.getElementById('docList');
+        
+        if (!data.documents || data.documents.length === 0) {
+            docList.innerHTML = `
+                <div class="empty-state">
+                    <div class="icon">📭</div>
+                    <h3>还没有文档</h3>
+                    <p>上传你的第一份学习资料吧</p>
+                </div>`;
+            return;
+        }
+        
+        docList.innerHTML = data.documents.map(doc => `
+            <div class="doc-item" id="doc-${doc.id}">
+                <div class="doc-icon ${doc.file_type}">${getFileIcon(doc.file_type)}</div>
+                <div class="doc-info">
+                    <div class="doc-name">${doc.filename}</div>
+                    <div class="doc-meta">${formatSize(doc.file_size)} · ${doc.chunk_count} 个知识块 · ${formatTime(doc.upload_time)}</div>
+                </div>
+                <span class="doc-status ${doc.status}">${getStatusLabel(doc.status)}</span>
+                <button class="doc-delete" onclick="deleteDocument(${doc.id})" title="删除">✕</button>
+            </div>
+        `).join('');
+    } catch (error) {
+        showToast('加载文档列表失败', 'error');
+    }
+}
+
+function checkProcessingStatus() {
+    const interval = setInterval(async () => {
+        try {
+            const response = await apiFetch(`${API_BASE}/documents/`);
+            const data = await response.json();
+            const processing = data.documents?.filter(d => d.status === 'processing') || [];
+            
+            if (processing.length === 0) {
+                clearInterval(interval);
+            }
+            loadDocuments();
+        } catch (e) {
+            // 出错时停止轮询
+            clearInterval(interval);
+        }
+    }, 3000);
+}
+
+async function deleteDocument(docId) {
+    if (!confirm('确定要删除这个文档吗？')) return;
+    
+    try {
+        const response = await apiFetch(`${API_BASE}/documents/${docId}`, { method: 'DELETE' });
+        const data = await response.json();
+        
+        if (response.ok) {
+            showToast('文档已删除', 'success');
+            loadDocuments();
+        } else {
+            showToast(data.error, 'error');
+        }
+    } catch (error) {
+        showToast('删除失败', 'error');
+    }
+}
+
+function getFileIcon(type) {
+    const icons = { pdf: '📕', pptx: '📙', md: '📘', txt: '📗' };
+    return icons[type] || '📄';
+}
+
+function getStatusLabel(status) {
+    const labels = { ready: '已就绪', processing: '解析中...', error: '解析失败' };
+    return labels[status] || status;
+}
+
+function formatSize(bytes) {
+    if (!bytes) return '0 B';
+    const k = 1024;
+    const sizes = ['B', 'KB', 'MB', 'GB'];
+    const i = Math.floor(Math.log(bytes) / Math.log(k));
+    return parseFloat((bytes / Math.pow(k, i)).toFixed(1)) + ' ' + sizes[i];
+}
+
+function formatTime(timeStr) {
+    if (!timeStr) return '';
+    return new Date(timeStr).toLocaleString('zh-CN', { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' });
+}
+
+// ========== 智能问答 ==========
+async function loadDocSelector() {
+    try {
+        const response = await apiFetch(`${API_BASE}/documents/`);
+        const data = await response.json();
+        
+        const selector = document.getElementById('docSelector');
+        const readyDocs = data.documents?.filter(d => d.status === 'ready') || [];
+        
+        selector.innerHTML = `<div class="doc-chip selected" data-doc-id="" onclick="toggleDocChip(this)">全部文档</div>`;
+        
+        readyDocs.forEach(doc => {
+            selector.innerHTML += `<div class="doc-chip" data-doc-id="${doc.id}" onclick="toggleDocChip(this)">${doc.filename}</div>`;
+        });
+        
+        selectedDocIds = [];
+    } catch (error) {
+        console.error('加载文档选择器失败:', error);
+    }
+}
+
+function toggleDocChip(el) {
+    const docId = el.dataset.docId;
+    
+    if (docId === '') {
+        // 全部文档
+        document.querySelectorAll('.doc-chip').forEach(c => c.classList.remove('selected'));
+        el.classList.add('selected');
+        selectedDocIds = [];
+    } else {
+        // 取消"全部"
+        document.querySelector('.doc-chip[data-doc-id=""]').classList.remove('selected');
+        el.classList.toggle('selected');
+        
+        selectedDocIds = Array.from(document.querySelectorAll('.doc-chip.selected'))
+            .map(c => parseInt(c.dataset.docId))
+            .filter(id => !isNaN(id));
+        
+        if (selectedDocIds.length === 0) {
+            document.querySelector('.doc-chip[data-doc-id=""]').classList.add('selected');
+        }
+    }
+}
+
+async function sendMessage() {
+    const input = document.getElementById('chatInput');
+    const question = input.value.trim();
+    
+    if (!question) return;
+    
+    // 清空输入
+    input.value = '';
+    
+    // 显示用户消息
+    appendMessage('user', question);
+    
+    // 禁用发送按钮
+    const btn = document.getElementById('btnSend');
+    btn.disabled = true;
+    
+    // 显示加载
+    const loadingId = appendMessage('assistant', '<div class="loading"><div class="spinner"></div> 正在思考...</div>');
+    
+    try {
+        const response = await apiFetch(`${API_BASE}/query/ask`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                question: question,
+                document_ids: selectedDocIds
+            })
+        });
+        
+        const data = await response.json();
+        
+        // 移除加载消息
+        document.getElementById(loadingId)?.remove();
+        
+        if (response.ok) {
+            const rendered = marked.parse(data.answer);
+            appendMessage('assistant', rendered);
+        } else {
+            appendMessage('assistant', `❌ 查询失败: ${data.error}`);
+        }
+    } catch (error) {
+        document.getElementById(loadingId)?.remove();
+        appendMessage('assistant', `❌ 网络错误: ${error.message}`);
+    }
+    
+    btn.disabled = false;
+}
+
+function appendMessage(role, content) {
+    const messages = document.getElementById('chatMessages');
+    
+    // 移除空状态
+    const emptyState = messages.querySelector('.empty-state');
+    if (emptyState) emptyState.remove();
+    
+    const id = 'msg-' + Date.now();
+    const avatar = role === 'user' ? '👤' : '🤖';
+    
+    const msgDiv = document.createElement('div');
+    msgDiv.className = `message ${role}`;
+    msgDiv.id = id;
+    msgDiv.innerHTML = `
+        <div class="message-avatar">${avatar}</div>
+        <div class="message-content">${content}</div>
+    `;
+    
+    messages.appendChild(msgDiv);
+    messages.scrollTop = messages.scrollHeight;
+    
+    return id;
+}
+
+// ========== 测评中心 ==========
+async function loadQuizDocSelect() {
+    try {
+        const response = await apiFetch(`${API_BASE}/documents/`);
+        const data = await response.json();
+        
+        const select = document.getElementById('quizDocSelect');
+        const readyDocs = data.documents?.filter(d => d.status === 'ready') || [];
+        
+        select.innerHTML = readyDocs.length === 0 
+            ? '<option value="">-- 请先上传文档 --</option>'
+            : readyDocs.map(doc => `<option value="${doc.id}">${doc.filename}</option>`).join('');
+    } catch (error) {
+        console.error('加载文档选择器失败:', error);
+    }
+}
+
+async function generateQuiz() {
+    const docId = document.getElementById('quizDocSelect').value;
+    const quizType = document.getElementById('quizTypeSelect').value;
+    const numQuestions = parseInt(document.getElementById('quizNumInput').value);
+    
+    if (!docId) {
+        showToast('请先选择一个文档', 'error');
+        return;
+    }
+    
+    const btn = document.getElementById('btnGenerateQuiz');
+    btn.disabled = true;
+    btn.textContent = '生成中...';
+    
+    try {
+        const response = await apiFetch(`${API_BASE}/quiz/generate`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ document_id: parseInt(docId), quiz_type: quizType, num_questions: numQuestions })
+        });
+        
+        const data = await response.json();
+        
+        if (response.ok) {
+            currentQuiz = data;
+            currentQuestions = data.questions;
+            renderQuiz(data.questions);
+            startQuizTimer();
+            showToast(`已生成 ${data.num_questions} 道题目`, 'success');
+        } else {
+            showToast(data.error, 'error');
+        }
+    } catch (error) {
+        showToast('生成测评失败: ' + error.message, 'error');
+    }
+    
+    btn.disabled = false;
+    btn.textContent = '生成测评';
+}
+
+function renderQuiz(questions) {
+    const area = document.getElementById('quizArea');
+    const container = document.getElementById('quizQuestions');
+    
+    area.classList.add('active');
+    
+    container.innerHTML = questions.map((q, i) => {
+        const typeLabel = q.type === 'choice' ? '选择题' : '判断题';
+        const typeClass = q.type;
+        
+        let optionsHtml = '';
+        if (q.type === 'choice') {
+            optionsHtml = `<div class="quiz-options">
+                ${Object.entries(q.options).map(([key, val]) => `
+                    <div class="quiz-option" data-q="${i}" data-val="${key}" onclick="selectOption(this)">
+                        ${key}. ${val}
+                    </div>
+                `).join('')}
+            </div>`;
+        } else {
+            optionsHtml = `<div class="quiz-options">
+                <div class="quiz-option" data-q="${i}" data-val="true" onclick="selectOption(this)">✅ 正确</div>
+                <div class="quiz-option" data-q="${i}" data-val="false" onclick="selectOption(this)">❌ 错误</div>
+            </div>`;
+        }
+        
+        return `
+            <div class="quiz-question" id="q-${i}">
+                <div class="q-header">
+                    <span class="q-number">${i + 1}</span>
+                    <span class="q-type ${typeClass}">${typeLabel}</span>
+                </div>
+                <div class="q-text">${q.question}</div>
+                ${optionsHtml}
+            </div>
+        `;
+    }).join('');
+}
+
+function selectOption(el) {
+    const qIndex = el.dataset.q;
+    // 取消同题其他选项
+    document.querySelectorAll(`.quiz-option[data-q="${qIndex}"]`).forEach(opt => opt.classList.remove('selected'));
+    el.classList.add('selected');
+}
+
+function startQuizTimer() {
+    quizStartTime = Date.now();
+    const display = document.getElementById('timerDisplay');
+    
+    quizTimerInterval = setInterval(() => {
+        const elapsed = Math.floor((Date.now() - quizStartTime) / 1000);
+        const mins = String(Math.floor(elapsed / 60)).padStart(2, '0');
+        const secs = String(elapsed % 60).padStart(2, '0');
+        display.textContent = `${mins}:${secs}`;
+    }, 1000);
+}
+
+async function submitQuiz() {
+    if (!currentQuiz) return;
+    
+    // 收集答案
+    const answers = [];
+    currentQuestions.forEach((q, i) => {
+        const selected = document.querySelector(`.quiz-option[data-q="${i}"].selected`);
+        answers.push({
+            question_index: i,
+            user_answer: selected ? selected.dataset.val : ''
+        });
+    });
+    
+    // 检查是否所有题目都已作答
+    const unanswered = answers.filter(a => !a.user_answer).length;
+    if (unanswered > 0) {
+        if (!confirm(`还有 ${unanswered} 题未作答，确定要提交吗？`)) return;
+    }
+    
+    // 停止计时
+    clearInterval(quizTimerInterval);
+    const timeSpent = Math.floor((Date.now() - quizStartTime) / 1000);
+    
+    // 本地评判
+    let correctCount = 0;
+    const details = [];
+    
+    currentQuestions.forEach((q, i) => {
+        const userAnswer = answers[i].user_answer;
+        let isCorrect = false;
+        
+        if (q.type === 'choice') {
+            isCorrect = userAnswer.toUpperCase() === q.answer.toUpperCase();
+        } else {
+            isCorrect = userAnswer === String(q.answer);
+        }
+        
+        if (isCorrect) correctCount++;
+        
+        details.push({
+            question_index: i,
+            user_answer: userAnswer,
+            correct_answer: q.answer,
+            is_correct: isCorrect,
+            explanation: q.explanation
+        });
+        
+        // 高亮正确/错误
+        const options = document.querySelectorAll(`.quiz-option[data-q="${i}"]`);
+        options.forEach(opt => {
+            opt.style.pointerEvents = 'none';
+            const optVal = opt.dataset.val;
+            if (q.type === 'choice') {
+                if (optVal.toUpperCase() === q.answer.toUpperCase()) opt.classList.add('correct');
+                if (opt.classList.contains('selected') && !isCorrect) opt.classList.add('wrong');
+            } else {
+                if (optVal === String(q.answer)) opt.classList.add('correct');
+                if (opt.classList.contains('selected') && !isCorrect) opt.classList.add('wrong');
+            }
+        });
+    });
+    
+    const score = Math.round((correctCount / currentQuestions.length) * 100);
+    
+    // 提交到后端
+    try {
+        await apiFetch(`${API_BASE}/quiz/submit`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                quiz_id: currentQuiz.quiz_id,
+                answers: answers,
+                time_spent: timeSpent
+            })
+        });
+    } catch (error) {
+        console.error('提交测评记录失败:', error);
+    }
+    
+    showToast(`测评完成！得分: ${score}分 (${correctCount}/${currentQuestions.length})`, score >= 60 ? 'success' : 'error');
+}
+
+function resetQuiz() {
+    document.getElementById('quizArea').classList.remove('active');
+    currentQuiz = null;
+    currentQuestions = [];
+    clearInterval(quizTimerInterval);
+    document.getElementById('timerDisplay').textContent = '00:00';
+}
+
+// ========== 学习报告 ==========
+async function loadProgress() {
+    try {
+        const response = await apiFetch(`${API_BASE}/progress/overview`);
+        const data = await response.json();
+        
+        document.getElementById('statQueries').textContent = data.query_count || 0;
+        document.getElementById('statQuizzes').textContent = data.quiz_count || 0;
+        document.getElementById('statAccuracy').textContent = (data.accuracy || 0) + '%';
+        document.getElementById('statDocs').textContent = data.doc_count || 0;
+        
+        // 加载图表
+        loadRadarChart();
+        loadDonutChart();
+    } catch (error) {
+        showToast('加载学习报告失败', 'error');
+    }
+}
+
+async function loadRadarChart() {
+    try {
+        const response = await apiFetch(`${API_BASE}/progress/radar`);
+        const data = await response.json();
+        
+        const chart = echarts.init(document.getElementById('radarChart'));
+        
+        chart.setOption({
+            backgroundColor: 'transparent',
+            radar: {
+                indicator: data.indicators,
+                shape: 'circle',
+                splitNumber: 5,
+                axisName: { color: '#888', fontSize: 12 },
+                splitLine: { lineStyle: { color: '#2a2a36' } },
+                splitArea: { areaStyle: { color: ['transparent'] } },
+                axisLine: { lineStyle: { color: '#2a2a36' } }
+            },
+            series: [{
+                type: 'radar',
+                data: [{
+                    value: data.values,
+                    name: '掌握度',
+                    lineStyle: { color: '#d4a574', width: 2 },
+                    areaStyle: { color: 'rgba(212,165,116,0.2)' },
+                    itemStyle: { color: '#d4a574' }
+                }]
+            }]
+        });
+    } catch (error) {
+        console.error('加载雷达图失败:', error);
+    }
+}
+
+async function loadDonutChart() {
+    try {
+        const response = await apiFetch(`${API_BASE}/progress/quiz-chart`);
+        const data = await response.json();
+        
+        const chart = echarts.init(document.getElementById('donutChart'));
+        
+        const colorMap = {
+            '优秀': '#4ade80',
+            '良好': '#60a5fa',
+            '及格': '#fbbf24',
+            '需加强': '#f87171'
+        };
+        
+        chart.setOption({
+            backgroundColor: 'transparent',
+            tooltip: { trigger: 'item' },
+            series: [{
+                type: 'pie',
+                radius: ['45%', '70%'],
+                center: ['50%', '50%'],
+                avoidLabelOverlap: false,
+                itemStyle: { borderRadius: 6, borderColor: '#12121a', borderWidth: 2 },
+                label: { color: '#e8e8e8', fontSize: 13 },
+                data: data.data.map(d => ({
+                    name: d.name,
+                    value: d.value,
+                    itemStyle: { color: colorMap[d.name] || '#888' }
+                }))
+            }]
+        });
+    } catch (error) {
+        console.error('加载环形图失败:', error);
+    }
+}
+
+// ========== 用户认证 ==========
+let currentUser = null;
+
+// 包装fetch自动添加credentials
+async function apiFetch(url, options = {}) {
+    const res = await fetch(url, { ...options, credentials: 'include' });
+    if (res.status === 401) {
+        // Session过期，显示登录界面
+        currentUser = null;
+        document.getElementById('loginOverlay').style.display = 'flex';
+        showLogin();
+        throw new Error('请先登录');
+    }
+    return res;
+}
+
+async function checkAuth() {
+    try {
+        const res = await apiFetch('/api/auth/me', { credentials: 'include' });
+        const data = await res.json();
+        if (data.authenticated) {
+            currentUser = data.user;
+            document.getElementById('loginOverlay').style.display = 'none';
+            document.getElementById('userInfo').textContent = currentUser.username;
+            initApp();
+        } else {
+            document.getElementById('loginOverlay').style.display = 'flex';
+        }
+    } catch (e) {
+        document.getElementById('loginOverlay').style.display = 'flex';
+    }
+}
+
+function showLogin() {
+    document.getElementById('loginForm').style.display = 'block';
+    document.getElementById('registerForm').style.display = 'none';
+    document.getElementById('loginError').textContent = '';
+}
+
+function showRegister() {
+    document.getElementById('loginForm').style.display = 'none';
+    document.getElementById('registerForm').style.display = 'block';
+    document.getElementById('registerError').textContent = '';
+}
+
+async function doLogin() {
+    const username = document.getElementById('loginUsername').value.trim();
+    const password = document.getElementById('loginPassword').value;
+    const errorEl = document.getElementById('loginError');
+    
+    if (!username || !password) {
+        errorEl.textContent = '请输入用户名和密码';
+        return;
+    }
+    
+    try {
+        const res = await apiFetch('/api/auth/login', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            credentials: 'include',
+            body: JSON.stringify({ username, password })
+        });
+        const data = await res.json();
+        if (res.ok) {
+            currentUser = data.user;
+            document.getElementById('loginOverlay').style.display = 'none';
+            document.getElementById('userInfo').textContent = currentUser.username;
+            initApp();
+        } else {
+            errorEl.textContent = data.error || '登录失败';
+        }
+    } catch (e) {
+        errorEl.textContent = '网络错误';
+    }
+}
+
+async function doRegister() {
+    const username = document.getElementById('regUsername').value.trim();
+    const password = document.getElementById('regPassword').value;
+    const password2 = document.getElementById('regPassword2').value;
+    const errorEl = document.getElementById('registerError');
+    
+    if (!username || !password) {
+        errorEl.textContent = '请输入用户名和密码';
+        return;
+    }
+    if (password !== password2) {
+        errorEl.textContent = '两次密码不一致';
+        return;
+    }
+    
+    try {
+        const res = await apiFetch('/api/auth/register', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            credentials: 'include',
+            body: JSON.stringify({ username, password })
+        });
+        const data = await res.json();
+        if (res.ok) {
+            currentUser = data.user;
+            document.getElementById('loginOverlay').style.display = 'none';
+            document.getElementById('userInfo').textContent = currentUser.username;
+            initApp();
+        } else {
+            errorEl.textContent = data.error || '注册失败';
+        }
+    } catch (e) {
+        errorEl.textContent = '网络错误';
+    }
+}
+
+async function doLogout() {
+    try {
+        await apiFetch('/api/auth/logout', { method: 'POST', credentials: 'include' });
+        currentUser = null;
+        document.getElementById('loginOverlay').style.display = 'flex';
+        showLogin();
+    } catch (e) {
+        console.error('登出失败', e);
+    }
+}
+
+let appInitialized = false;
+
+function initApp() {
+    if (appInitialized) return;
+    appInitialized = true;
+    
+    const uploadZone = document.getElementById('uploadZone');
+    const fileInput = document.getElementById('fileInput');
+    
+    uploadZone.addEventListener('click', () => fileInput.click());
+    uploadZone.addEventListener('dragover', (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        uploadZone.classList.add('drag-over');
+    });
+    uploadZone.addEventListener('dragleave', (e) => {
+        e.stopPropagation();
+        uploadZone.classList.remove('drag-over');
+    });
+    uploadZone.addEventListener('drop', (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        uploadZone.classList.remove('drag-over');
+        const files = e.dataTransfer.files;
+        if (files.length > 0) uploadFiles(files);
+    });
+    fileInput.addEventListener('change', (e) => {
+        if (e.target.files.length > 0) uploadFiles(e.target.files);
+        fileInput.value = '';
+    });
+    
+    const chatInput = document.getElementById('chatInput');
+    const btnSend = document.getElementById('btnSend');
+    chatInput.addEventListener('keydown', (e) => {
+        if (e.key === 'Enter' && !e.shiftKey) {
+            e.preventDefault();
+            sendMessage();
+        }
+    });
+    btnSend.addEventListener('click', () => sendMessage());
+    
+    loadDocuments();
+}
+
+document.addEventListener('DOMContentLoaded', () => {
+    checkAuth();
+});
+</script>
+</body>
+</html>
