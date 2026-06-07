@@ -10,23 +10,24 @@ def create_app():
     
     # Session配置
     app.secret_key = os.getenv('SECRET_KEY', 'dev-secret-key-change-in-production')
-    app.config['SESSION_COOKIE_SECURE'] = False
+    app.config['SESSION_COOKIE_SECURE'] = os.getenv('FLY_APP_NAME') is not None  # 生产环境用HTTPS
     app.config['SESSION_COOKIE_HTTPONLY'] = True
     
-    # 基于backend目录计算绝对路径
-    base_dir = os.path.dirname(os.path.abspath(__file__))
-    project_dir = os.path.dirname(base_dir)
+    # 基于环境变量或默认值计算路径
+    # Fly.io 使用 /data 作为持久化卷挂载点
+    data_dir = os.getenv('DATA_DIR', os.path.join(os.path.dirname(os.path.abspath(__file__)), '..', 'data'))
     
     # 配置
-    app.config['UPLOAD_FOLDER'] = os.path.join(project_dir, 'data', 'uploads')
+    app.config['UPLOAD_FOLDER'] = os.path.join(data_dir, 'uploads')
     app.config['MAX_CONTENT_LENGTH'] = 100 * 1024 * 1024  # 100MB
-    app.config['DATABASE_PATH'] = os.path.join(project_dir, 'data', 'db', 'learning.db')
-    app.config['CHROMADB_PATH'] = os.path.join(project_dir, 'data', 'chromadb')
-    app.config['DATA_DIR'] = os.path.join(project_dir, 'data')
+    app.config['DATABASE_PATH'] = os.path.join(data_dir, 'db', 'learning.db')
+    app.config['CHROMADB_PATH'] = os.path.join(data_dir, 'chromadb')
+    app.config['DATA_DIR'] = data_dir
     app.config['DEEPSEEK_API_KEY'] = os.getenv('DEEPSEEK_API_KEY', '')
     
-    # 启用CORS
-    CORS(app, supports_credentials=True)
+    # 启用CORS - 生产环境应限制来源
+    cors_origins = os.getenv('CORS_ORIGINS', '*').split(',')
+    CORS(app, supports_credentials=True, origins=cors_origins)
     
     # 确保目录存在
     for d in [app.config['UPLOAD_FOLDER'], 
@@ -84,4 +85,5 @@ def create_app():
 
 if __name__ == '__main__':
     app = create_app()
-    app.run(debug=False, host='0.0.0.0', port=5000, use_reloader=False)
+    port = int(os.getenv('PORT', 5000))
+    app.run(debug=False, host='0.0.0.0', port=port, use_reloader=False)
