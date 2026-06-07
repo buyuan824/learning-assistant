@@ -65,12 +65,15 @@ def create_app():
     
     # 前端路由
     @app.route('/')
-    def index():
-        return send_from_directory('../frontend', 'index.html')
-    
-    @app.route('/<path:path>')
-    def static_files(path):
-        return send_from_directory('../frontend', path)
+def index():
+    base_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+    return send_from_directory(os.path.join(base_dir, 'frontend'), 'index.html')
+
+@app.route('/<path:path>')
+def static_files(path):
+    base_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+    return send_from_directory(os.path.join(base_dir, 'frontend'), path)
+
     
     @app.route('/api/health')
     def health():
